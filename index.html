@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Birth Time Estimator — Vedic Lagna Calculator</title>
+  <meta name="description" content="Estimate birth time windows from Vedic Lagna (Ascendant) signs with Lahiri sidereal precision and historical timezone support." />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="header">
+      <div class="header-title-group">
+        <span class="logo-mark" aria-hidden="true">☉</span>
+        <div>
+          <h1>Birth Time Estimator</h1>
+          <p class="subtitle">Vedic Lagna (Ascendant) windows &amp; Navamsha breakdown with Lahiri sidereal precision</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button type="button" id="themeToggle" class="btn btn-ghost" title="Toggle light/dark theme">
+          <span id="themeIcon">☀️</span> <span id="themeLabel">Light</span>
+        </button>
+      </div>
+    </header>
+
+    <main class="main-grid">
+      <!-- Input Panel -->
+      <section class="card controls-card" aria-label="Birth details">
+        <div class="card-header">
+          <h2>Birth Details</h2>
+          <span id="tzDetectedBadge" class="badge" title="Detected historical UTC offset for selected date"></span>
+        </div>
+
+        <form id="estimatorForm" class="form-grid" novalidate>
+          <div class="field">
+            <label for="birthDate">Birth Date (Local)</label>
+            <input type="date" id="birthDate" value="1998-04-06" required />
+          </div>
+
+          <div class="field">
+            <label for="cityPreset">Quick Location Preset</label>
+            <select id="cityPreset">
+              <option value="custom">Custom coordinates</option>
+              <optgroup label="Sri Lanka">
+                <option value="6.9271,79.8612,Asia/Colombo" selected>Colombo, Sri Lanka</option>
+                <option value="7.2906,80.6337,Asia/Colombo">Kandy, Sri Lanka</option>
+                <option value="6.0535,80.2210,Asia/Colombo">Galle, Sri Lanka</option>
+                <option value="9.6615,80.0255,Asia/Colombo">Jaffna, Sri Lanka</option>
+                <option value="7.0840,80.0098,Asia/Colombo">Gampaha, Sri Lanka</option>
+                <option value="7.4863,80.3647,Asia/Colombo">Kurunegala, Sri Lanka</option>
+              </optgroup>
+              <optgroup label="India">
+                <option value="28.6139,77.2090,Asia/Kolkata">New Delhi, India</option>
+                <option value="28.6692,77.4538,Asia/Kolkata">Ghaziabad, India</option>
+                <option value="19.0760,72.8777,Asia/Kolkata">Mumbai, India</option>
+                <option value="13.0827,80.2707,Asia/Kolkata">Chennai, India</option>
+                <option value="12.9716,77.5946,Asia/Kolkata">Bengaluru, India</option>
+                <option value="22.5726,88.3639,Asia/Kolkata">Kolkata, India</option>
+              </optgroup>
+              <optgroup label="Global">
+                <option value="51.5074,-0.1278,Europe/London">London, UK</option>
+                <option value="53.3498,-6.2603,Europe/Dublin">Dublin, Ireland</option>
+                <option value="40.7128,-74.0060,America/New_York">New York, USA</option>
+                <option value="34.0522,-118.2437,America/Los_Angeles">Los Angeles, USA</option>
+                <option value="-33.8688,151.2093,Australia/Sydney">Sydney, Australia</option>
+                <option value="1.3521,103.8198,Asia/Singapore">Singapore</option>
+              </optgroup>
+            </select>
+          </div>
+
+          <div class="field field-span-2">
+            <label for="citySearch">Search Any City (OpenStreetMap)</label>
+            <div class="input-with-btn">
+              <input type="text" id="citySearch" placeholder="e.g., Matara, Sri Lanka or Tokyo, Japan" autocomplete="off" />
+              <button type="button" id="searchCityBtn" class="btn btn-secondary">Search</button>
+            </div>
+            <div id="searchResults" class="search-results hidden" role="listbox"></div>
+          </div>
+
+          <div class="field">
+            <label for="latitude">Latitude (°N)</label>
+            <input type="number" id="latitude" step="0.0001" min="-66" max="66" value="6.9271" required />
+          </div>
+
+          <div class="field">
+            <label for="longitude">Longitude (°E)</label>
+            <input type="number" id="longitude" step="0.0001" min="-180" max="180" value="79.8612" required />
+          </div>
+
+          <div class="field">
+            <label for="timezone">Timezone (Historical IANA)</label>
+            <select id="timezone"></select>
+          </div>
+
+          <div class="field">
+            <label class="checkbox-label" for="useManualOffset">
+              <input type="checkbox" id="useManualOffset" />
+              <span>Override UTC Offset (hours)</span>
+            </label>
+            <input type="number" id="manualOffset" step="0.25" min="-12" max="14" value="5.5" disabled />
+          </div>
+
+          <div class="field">
+            <label for="ayanamsa">Ayanamsa</label>
+            <select id="ayanamsa">
+              <option value="lahiri" selected>Lahiri (Chitrapaksha)</option>
+              <option value="kp">Krishnamurti (KP)</option>
+              <option value="raman">B.V. Raman</option>
+              <option value="tropical">Tropical (Western)</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="stepMinutes">Interval Step</label>
+            <select id="stepMinutes">
+              <option value="5">Every 5 minutes</option>
+              <option value="10">Every 10 minutes</option>
+              <option value="15" selected>Every 15 minutes</option>
+              <option value="30">Every 30 minutes</option>
+              <option value="60">Every 60 minutes</option>
+            </select>
+          </div>
+        </form>
+      </section>
+
+      <!-- Known Lagna Filter & Estimated Window -->
+      <section class="card filter-card" aria-label="Filter by known Lagna">
+        <div class="card-header">
+          <div>
+            <h2>Know Your Lagna? Find Your Birth Window</h2>
+            <p class="card-sub">Select a Lagna sign to narrow down exact birth time &amp; Navamsha (D9) sub-windows.</p>
+          </div>
+          <button type="button" id="clearFilterBtn" class="btn btn-ghost hidden">Show All 24h</button>
+        </div>
+
+        <div id="signPills" class="sign-pills" role="group" aria-label="Filter by Lagna sign"></div>
+
+        <div id="selectedLagnaSummary" class="highlight-box hidden"></div>
+      </section>
+
+      <!-- 24-Hour Timeline -->
+      <section class="card timeline-card" aria-label="24-hour Lagna timeline">
+        <div class="card-header">
+          <div>
+            <h2>24-Hour Lagna Timeline</h2>
+            <p id="metaSummary" class="card-sub"></p>
+          </div>
+          <div class="btn-row">
+            <button type="button" id="copySummaryBtn" class="btn btn-secondary">Copy Summary</button>
+            <button type="button" id="exportCsvBtn" class="btn btn-secondary">Export CSV</button>
+          </div>
+        </div>
+
+        <div class="timeline-wrapper">
+          <div id="timelineBar" class="timeline-bar" role="list"></div>
+          <div class="timeline-axis" aria-hidden="true">
+            <span>00:00</span>
+            <span>04:00</span>
+            <span>08:00</span>
+            <span>12:00</span>
+            <span>16:00</span>
+            <span>20:00</span>
+            <span>24:00</span>
+          </div>
+        </div>
+
+        <div id="windowsGrid" class="windows-grid"></div>
+      </section>
+
+      <!-- Detailed Interval Table -->
+      <section class="card table-card" aria-label="Interval table">
+        <div class="card-header">
+          <div>
+            <h2>Interval Breakdown</h2>
+            <p id="intervalCountText" class="card-sub"></p>
+          </div>
+        </div>
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Local Time</th>
+                <th>Lagna Sign</th>
+                <th>Vedic Name</th>
+                <th>Degree</th>
+                <th>Nakshatra (Pada)</th>
+                <th>Navamsha (D9)</th>
+              </tr>
+            </thead>
+            <tbody id="intervalTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>
+        Sidereal Lahiri calculations verified against Swiss Ephemeris (&lt; 0.01° precision across 1900–2100).
+        Historical UTC offsets resolved automatically via the browser IANA timezone database.
+      </p>
+    </footer>
+  </div>
+
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+
+  <script src="astro.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
