@@ -1,12 +1,14 @@
 # Birth Time Estimator
 
+**Live Demo:** https://randt.github.io/BirthTimeEstimator/
+
 Estimate birth time windows from Vedic astrology **Lagna (Ascendant)** signs across any 24-hour day, with **Lahiri sidereal** precision and automatic **historical IANA timezone** resolution (e.g., Sri Lanka `UTC+06:00` in 1998 vs `UTC+05:30` in 1995).
 
-Includes both a **zero-dependency HTML/JS web app** (ready for GitHub Pages) and a **Python CLI** powered by Swiss Ephemeris (`pyswisseph`).
+Includes both a **zero-dependency HTML/JS web app** (hosted on GitHub Pages) and a **Python CLI** powered by Swiss Ephemeris (`pyswisseph`).
 
 ## Web App (GitHub Pages)
 
-Open `index.html` directly in a browser or deploy via GitHub Pages (branch `main`, root `/`).
+Try it live at https://randt.github.io/BirthTimeEstimator/ or open `index.html` directly in a browser.
 
 Features:
 - Exact 24-hour Lagna transition windows (1-second binary-search precision)
