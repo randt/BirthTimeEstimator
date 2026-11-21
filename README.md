@@ -16,7 +16,7 @@ Features:
 - Lahiri (Chitrapaksha), Krishnamurti (KP), B.V. Raman, and Tropical ayanamsas
 - Automatic historical timezone offsets via the browser IANA database (plus manual UTC offset override)
 - Quick Sri Lanka, India, and global city presets + OpenStreetMap city search
-- CSV export, clipboard summary copy, dark/light theme, and shareable URL parameters
+- CSV export, clipboard summary copy, monochrome UI, and shareable URL parameters
 
 ## Python CLI
 

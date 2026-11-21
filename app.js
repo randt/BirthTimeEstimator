@@ -21,6 +21,7 @@
   const rangePresetsEl = document.getElementById("rangePresets");
 
   const tzDetectedBadge = document.getElementById("tzDetectedBadge");
+  const ayanamsaPillEl = document.getElementById("ayanamsaPill");
   const signPillsEl = document.getElementById("signPills");
   const clearFilterBtn = document.getElementById("clearFilterBtn");
   const selectedLagnaSummaryEl = document.getElementById("selectedLagnaSummary");
@@ -31,9 +32,6 @@
   const intervalTableBodyEl = document.getElementById("intervalTableBody");
   const copySummaryBtn = document.getElementById("copySummaryBtn");
   const exportCsvBtn = document.getElementById("exportCsvBtn");
-  const themeToggleBtn = document.getElementById("themeToggle");
-  const themeIconEl = document.getElementById("themeIcon");
-  const themeLabelEl = document.getElementById("themeLabel");
   const toastEl = document.getElementById("toast");
 
   let selectedSignIndex = null; // null = all signs
@@ -111,7 +109,7 @@
       btn.className = "sign-pill" + (selectedSignIndex === sign.index ? " active" : "");
       btn.dataset.signIndex = String(sign.index);
       btn.innerHTML = `
-        <span class="sign-dot" style="background:${sign.color}"></span>
+        <span class="sign-symbol">${sign.symbol}</span>
         <span>${sign.name}</span>
         <span class="sign-pill-vedic">${sign.vedic}</span>
       `;
@@ -325,10 +323,13 @@
 
     const ayanamsaDeg = Astro.getMeanAyanamsa(Astro.dateToJulianDayUT(noonUTC), state.ayanamsa);
     const ayanamsaCfg = Astro.AYANAMSA_COEFFS[state.ayanamsa];
+    ayanamsaPillEl.textContent =
+      state.ayanamsa !== "tropical"
+        ? `${ayanamsaCfg.label} · ${ayanamsaDeg.toFixed(2)}°`
+        : ayanamsaCfg.label;
     const rangeLabel = `${Astro.formatSecondsToHM(state.rangeStartSec)}–${state.rangeEndSec >= 86400 ? "24:00" : Astro.formatSecondsToHM(state.rangeEndSec)}`;
     metaSummaryEl.textContent =
-      `${state.dateStr} (${rangeLabel}) · ${state.latitude.toFixed(4)}°N, ${state.longitude.toFixed(4)}°E · ${offsetStr} · ${ayanamsaCfg.label}` +
-      (state.ayanamsa !== "tropical" ? ` (${ayanamsaDeg.toFixed(2)}°)` : "");
+      `${state.dateStr} (${rangeLabel}) · ${state.latitude.toFixed(4)}°N, ${state.longitude.toFixed(4)}°E · ${offsetStr}`;
 
     // Compute full-day exact windows, clipped range windows, and interval rows
     lastWindows = Astro.calculateLagnaWindows(state);
@@ -357,6 +358,7 @@
     const rangeEndStr = state.rangeEndSec >= 86400 ? "24:00" : Astro.formatSecondsToHM(state.rangeEndSec);
 
     if (selectedSignIndex === null) {
+      selectedLagnaSummaryEl.classList.remove("is-narrowed");
       const durMin = Math.round(((state.rangeEndSec - state.rangeStartSec) / 60) * 10) / 10;
       const midSec = Math.floor((state.rangeStartSec + state.rangeEndSec) / 2);
       const halfMin = Math.round(((state.rangeEndSec - state.rangeStartSec) / 120) * 10) / 10;
@@ -384,6 +386,7 @@
     const matchingFullDay = allWindows.filter((w) => w.signIndex === selectedSignIndex);
 
     if (matchingClipped.length === 0) {
+      selectedLagnaSummaryEl.classList.remove("is-narrowed");
       const fullDayInfo = matchingFullDay.length
         ? `On ${state.dateStr}, ${sign.name} (${sign.vedic}) rises during <strong>${matchingFullDay.map((w) => `${w.startTime} – ${w.endTime}`).join(", ")}</strong>.`
         : `This sign does not rise on ${state.dateStr} at this location.`;
@@ -396,6 +399,8 @@
       `;
       return;
     }
+
+    selectedLagnaSummaryEl.classList.add("is-narrowed");
 
     const blocksHtml = matchingClipped
       .map((w) => {
@@ -470,7 +475,6 @@
         seg.classList.add(w.signIndex === selectedSignIndex ? "selected" : "dimmed");
       }
       seg.style.width = `${pct}%`;
-      seg.style.backgroundColor = w.sign.color;
       seg.title = `${w.sign.name} (${w.sign.vedic}): ${w.startTime} – ${w.endTime} (${w.durationMinutes} min)`;
       seg.setAttribute("role", "listitem");
       seg.textContent = pct >= 6.5 ? w.sign.name.slice(0, 3) : pct >= 3.2 ? w.sign.symbol : "";
@@ -525,8 +529,8 @@
       card.className = "window-card" + (selectedSignIndex === w.signIndex ? " selected" : "");
       card.innerHTML = `
         <div class="window-card-top">
-          <span class="sign-dot" style="background:${w.sign.color}"></span>
-          <span>${w.sign.symbol} ${w.sign.name}</span>
+          <span class="sign-symbol">${w.sign.symbol}</span>
+          <span>${w.sign.name}</span>
           <span class="sign-pill-vedic">${w.sign.vedic}</span>
         </div>
         <div class="window-card-time">${w.startTime} – ${w.endTime}</div>
@@ -564,15 +568,15 @@
     filtered.forEach((r) => {
       const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td><strong>${r.time}</strong></td>
+        <td class="mono"><strong>${r.time}</strong></td>
         <td>
           <span class="sign-cell">
-            <span class="sign-dot" style="background:${r.sign.color}"></span>
-            ${r.sign.symbol} ${r.sign.name}
+            <span class="sign-symbol">${r.sign.symbol}</span>
+            ${r.sign.name}
           </span>
         </td>
         <td>${r.sign.vedic}</td>
-        <td>${r.degInSignFormatted}</td>
+        <td class="mono">${r.degInSignFormatted}</td>
         <td>${r.nakshatra} (P${r.pada})</td>
         <td>${r.navamshaSign.name} (${r.navamshaSign.vedic})</td>
       `;
@@ -677,19 +681,6 @@
     URL.revokeObjectURL(a.href);
   }
 
-  // Theme handling
-  function applyTheme(theme) {
-    document.documentElement.setAttribute("data-theme", theme);
-    localStorage.setItem("bte-theme", theme);
-    if (theme === "light") {
-      themeIconEl.textContent = "🌙";
-      themeLabelEl.textContent = "Dark";
-    } else {
-      themeIconEl.textContent = "☀️";
-      themeLabelEl.textContent = "Light";
-    }
-  }
-
   // Wire up events
   cityPresetEl.addEventListener("change", () => {
     if (cityPresetEl.value === "custom") return;
@@ -769,15 +760,9 @@
   copySummaryBtn.addEventListener("click", copySummary);
   exportCsvBtn.addEventListener("click", exportCsv);
 
-  themeToggleBtn.addEventListener("click", () => {
-    const cur = document.documentElement.getAttribute("data-theme") || "dark";
-    applyTheme(cur === "dark" ? "light" : "dark");
-  });
-
   // Init
   populateTimezones();
   renderSignPills();
-  applyTheme(localStorage.getItem("bte-theme") || "dark");
   applyUrlParams();
   updateAll();
 })();

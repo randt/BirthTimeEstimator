@@ -9,18 +9,17 @@
 </head>
 <body>
   <div class="app-shell">
-    <header class="header">
-      <div class="header-title-group">
-        <span class="logo-mark" aria-hidden="true">☉</span>
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-badge" aria-hidden="true">BT</div>
         <div>
           <h1>Birth Time Estimator</h1>
-          <p class="subtitle">Vedic Lagna (Ascendant) windows &amp; Navamsha breakdown with Lahiri sidereal precision</p>
+          <p>Vedic Lagna (Ascendant) &amp; Navamsha birth time range calculator</p>
         </div>
       </div>
-      <div class="header-actions">
-        <button type="button" id="themeToggle" class="btn btn-ghost" title="Toggle light/dark theme">
-          <span id="themeIcon">☀️</span> <span id="themeLabel">Light</span>
-        </button>
+      <div class="status-cluster">
+        <span id="tzDetectedBadge" class="pill mono" title="Detected historical UTC offset for selected date"></span>
+        <span id="ayanamsaPill" class="pill solid mono">Lahiri Sidereal</span>
       </div>
     </header>
 
@@ -28,8 +27,10 @@
       <!-- Input Panel -->
       <section class="card controls-card" aria-label="Birth details">
         <div class="card-header">
-          <h2>Birth Details</h2>
-          <span id="tzDetectedBadge" class="badge" title="Detected historical UTC offset for selected date"></span>
+          <div>
+            <h2>Birth Details &amp; Approximate Time Range</h2>
+            <p class="muted">Enter birth date, location, and optional approximate time window.</p>
+          </div>
         </div>
 
         <form id="estimatorForm" class="form-grid" novalidate>
