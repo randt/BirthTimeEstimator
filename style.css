@@ -167,6 +167,7 @@ label {
 }
 
 input[type="date"],
+input[type="time"],
 input[type="number"],
 input[type="text"],
 select {
@@ -276,6 +277,84 @@ input:disabled {
 .btn-ghost:hover {
   color: var(--text);
   background: var(--bg-subtle);
+}
+
+.btn-sm {
+  padding: 6px 10px;
+  font-size: 0.78rem;
+}
+
+.preset-range-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.preset-range-btns .btn.active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.navamsha-chip {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  font-size: 0.8rem;
+  cursor: pointer;
+  text-align: left;
+  color: var(--text);
+  font-family: inherit;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.navamsha-chip:hover {
+  border-color: var(--accent);
+}
+
+.navamsha-chip.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.range-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 6px;
+  margin-bottom: 10px;
+}
+
+.range-stat-pill {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.timeline-bar {
+  position: relative;
+}
+
+.timeline-range-mask {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.58);
+  pointer-events: none;
+  z-index: 3;
+}
+
+.timeline-range-frame {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border: 2px solid var(--accent);
+  pointer-events: none;
+  z-index: 4;
 }
 
 /* Sign Pills */

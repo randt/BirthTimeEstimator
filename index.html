@@ -121,22 +121,43 @@
               <option value="60">Every 60 minutes</option>
             </select>
           </div>
+
+          <div class="field">
+            <label for="rangeStart">Approx. Birth Time — From</label>
+            <input type="time" id="rangeStart" value="00:00" />
+          </div>
+
+          <div class="field">
+            <label for="rangeEnd">Approx. Birth Time — To</label>
+            <input type="time" id="rangeEnd" value="23:59" />
+          </div>
+
+          <div class="field field-span-2">
+            <label>Quick Time Range Presets</label>
+            <div class="preset-range-btns" id="rangePresets">
+              <button type="button" class="btn btn-secondary btn-sm active" data-start="00:00" data-end="24:00">Full Day</button>
+              <button type="button" class="btn btn-secondary btn-sm" data-start="00:00" data-end="06:00">Early (00–06)</button>
+              <button type="button" class="btn btn-secondary btn-sm" data-start="06:00" data-end="12:00">Morning (06–12)</button>
+              <button type="button" class="btn btn-secondary btn-sm" data-start="12:00" data-end="18:00">Afternoon (12–18)</button>
+              <button type="button" class="btn btn-secondary btn-sm" data-start="18:00" data-end="24:00">Evening (18–24)</button>
+            </div>
+          </div>
         </form>
       </section>
 
-      <!-- Known Lagna Filter & Estimated Window -->
-      <section class="card filter-card" aria-label="Filter by known Lagna">
+      <!-- Known Lagna Filter & Estimated Birth Time Range -->
+      <section class="card filter-card" aria-label="Estimate birth time range">
         <div class="card-header">
           <div>
-            <h2>Know Your Lagna? Find Your Birth Window</h2>
-            <p class="card-sub">Select a Lagna sign to narrow down exact birth time &amp; Navamsha (D9) sub-windows.</p>
+            <h2>Estimated Birth Time Range</h2>
+            <p class="card-sub">Combine your approximate time range with a known Lagna (and optional D9 Navamsha) for a tighter estimate.</p>
           </div>
-          <button type="button" id="clearFilterBtn" class="btn btn-ghost hidden">Show All 24h</button>
+          <button type="button" id="clearFilterBtn" class="btn btn-ghost hidden">Reset Filters</button>
         </div>
 
         <div id="signPills" class="sign-pills" role="group" aria-label="Filter by Lagna sign"></div>
 
-        <div id="selectedLagnaSummary" class="highlight-box hidden"></div>
+        <div id="selectedLagnaSummary" class="highlight-box"></div>
       </section>
 
       <!-- 24-Hour Timeline -->

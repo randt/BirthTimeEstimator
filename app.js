@@ -16,6 +16,9 @@
   const manualOffsetEl = document.getElementById("manualOffset");
   const ayanamsaEl = document.getElementById("ayanamsa");
   const stepMinutesEl = document.getElementById("stepMinutes");
+  const rangeStartEl = document.getElementById("rangeStart");
+  const rangeEndEl = document.getElementById("rangeEnd");
+  const rangePresetsEl = document.getElementById("rangePresets");
 
   const tzDetectedBadge = document.getElementById("tzDetectedBadge");
   const signPillsEl = document.getElementById("signPills");
@@ -33,9 +36,12 @@
   const themeLabelEl = document.getElementById("themeLabel");
   const toastEl = document.getElementById("toast");
 
-  let selectedSignIndex = null; // null = show all
+  let selectedSignIndex = null; // null = all signs
+  let selectedNavamshaIndex = null; // optional D9 filter inside selected Lagna
+  let rangeEndIsMidnight = true; // true represents 24:00:00 (end of day)
   let lastState = null;
   let lastWindows = [];
+  let lastClippedWindows = [];
   let lastIntervals = [];
   let toastTimer = null;
 
@@ -110,11 +116,46 @@
         <span class="sign-pill-vedic">${sign.vedic}</span>
       `;
       btn.addEventListener("click", () => {
-        selectedSignIndex = selectedSignIndex === sign.index ? null : sign.index;
+        if (selectedSignIndex === sign.index) {
+          selectedSignIndex = null;
+          selectedNavamshaIndex = null;
+        } else {
+          selectedSignIndex = sign.index;
+          selectedNavamshaIndex = null;
+        }
         updateAll();
       });
       signPillsEl.appendChild(btn);
     });
+  }
+
+  function parseTimeToSeconds(val, treatEndAsFullDay) {
+    if (!val) return treatEndAsFullDay ? 86400 : 0;
+    if (val === "24:00" || val === "24:00:00") return 86400;
+    const [h, m] = val.split(":").map(Number);
+    if (!Number.isFinite(h) || !Number.isFinite(m)) return treatEndAsFullDay ? 86400 : 0;
+    if (treatEndAsFullDay && rangeEndIsMidnight && h === 23 && m === 59) return 86400;
+    return Math.max(0, Math.min(86400, h * 3600 + m * 60));
+  }
+
+  function clipWindow(w, startSec, endSec) {
+    const lo = Math.max(w.startSec, startSec);
+    const hi = Math.min(w.endSec, endSec);
+    if (hi <= lo) return null;
+    const durSec = hi - lo;
+    const midSec = Math.floor((lo + hi) / 2);
+    return {
+      ...w,
+      startSec: lo,
+      endSec: hi,
+      startTime: Astro.formatSecondsToHMS(lo),
+      endTime: Astro.formatSecondsToHMS(hi),
+      startHM: Astro.formatSecondsToHM(lo),
+      endHM: Astro.formatSecondsToHM(hi),
+      midpointTime: Astro.formatSecondsToHMS(midSec),
+      plusMinusMin: Math.round((durSec / 120) * 10) / 10,
+      durationMinutes: Math.round((durSec / 60) * 10) / 10,
+    };
   }
 
   function readStateFromInputs() {
@@ -128,6 +169,13 @@
     const ayanamsa = ayanamsaEl.value || "lahiri";
     const stepMinutes = parseInt(stepMinutesEl.value, 10) || 15;
 
+    let rangeStartSec = parseTimeToSeconds(rangeStartEl.value, false);
+    let rangeEndSec = parseTimeToSeconds(rangeEndEl.value, true);
+    if (rangeEndSec <= rangeStartSec) {
+      rangeStartSec = 0;
+      rangeEndSec = 86400;
+    }
+
     return {
       dateStr: birthDateEl.value || "1998-04-06",
       year,
@@ -139,7 +187,19 @@
       manualOffsetMinutes,
       ayanamsa,
       stepMinutes,
+      rangeStartSec,
+      rangeEndSec,
+      isCustomRange: rangeStartSec > 0 || rangeEndSec < 86400,
     };
+  }
+
+  function syncRangePresetButtons(startSec, endSec) {
+    const startStr = Astro.formatSecondsToHM(startSec);
+    const endStr = endSec >= 86400 ? "24:00" : Astro.formatSecondsToHM(endSec);
+    rangePresetsEl.querySelectorAll("button").forEach((btn) => {
+      const match = btn.dataset.start === startStr && btn.dataset.end === endStr;
+      btn.classList.toggle("active", match);
+    });
   }
 
   function syncUrlParams(state) {
@@ -151,6 +211,13 @@
       url.searchParams.set("tz", state.timeZone);
       url.searchParams.set("ayanamsa", state.ayanamsa);
       url.searchParams.set("step", String(state.stepMinutes));
+      if (state.isCustomRange) {
+        url.searchParams.set("start", Astro.formatSecondsToHM(state.rangeStartSec));
+        url.searchParams.set("end", state.rangeEndSec >= 86400 ? "24:00" : Astro.formatSecondsToHM(state.rangeEndSec));
+      } else {
+        url.searchParams.delete("start");
+        url.searchParams.delete("end");
+      }
       if (state.manualOffsetMinutes !== null) {
         url.searchParams.set("offset", String(state.manualOffsetMinutes / 60));
       } else {
@@ -160,6 +227,11 @@
         url.searchParams.set("lagna", Astro.ZODIAC_SIGNS[selectedSignIndex].name.toLowerCase());
       } else {
         url.searchParams.delete("lagna");
+      }
+      if (selectedNavamshaIndex !== null) {
+        url.searchParams.set("d9", Astro.ZODIAC_SIGNS[selectedNavamshaIndex].name.toLowerCase());
+      } else {
+        url.searchParams.delete("d9");
       }
       window.history.replaceState({}, "", url.toString());
     } catch (_) {
@@ -195,12 +267,32 @@
     if (params.has("step")) {
       stepMinutesEl.value = params.get("step");
     }
+    if (params.has("start")) {
+      rangeStartEl.value = params.get("start");
+    }
+    if (params.has("end")) {
+      const endVal = params.get("end");
+      if (endVal === "24:00") {
+        rangeEndEl.value = "23:59";
+        rangeEndIsMidnight = true;
+      } else {
+        rangeEndEl.value = endVal;
+        rangeEndIsMidnight = false;
+      }
+    }
     if (params.has("lagna")) {
       const q = params.get("lagna").toLowerCase();
       const match = Astro.ZODIAC_SIGNS.find(
         (s) => s.name.toLowerCase() === q || s.vedic.toLowerCase() === q
       );
       if (match) selectedSignIndex = match.index;
+    }
+    if (params.has("d9")) {
+      const q = params.get("d9").toLowerCase();
+      const match = Astro.ZODIAC_SIGNS.find(
+        (s) => s.name.toLowerCase() === q || s.vedic.toLowerCase() === q
+      );
+      if (match) selectedNavamshaIndex = match.index;
     }
   }
 
@@ -209,6 +301,7 @@
     if (!state.year || !state.month || !state.day) return;
 
     lastState = state;
+    syncRangePresetButtons(state.rangeStartSec, state.rangeEndSec);
 
     // Detect effective UTC offset at local noon on the chosen date
     const noonUTC = Astro.localToUTCDate(
@@ -232,77 +325,124 @@
 
     const ayanamsaDeg = Astro.getMeanAyanamsa(Astro.dateToJulianDayUT(noonUTC), state.ayanamsa);
     const ayanamsaCfg = Astro.AYANAMSA_COEFFS[state.ayanamsa];
+    const rangeLabel = `${Astro.formatSecondsToHM(state.rangeStartSec)}–${state.rangeEndSec >= 86400 ? "24:00" : Astro.formatSecondsToHM(state.rangeEndSec)}`;
     metaSummaryEl.textContent =
-      `${state.dateStr} · ${state.latitude.toFixed(4)}°N, ${state.longitude.toFixed(4)}°E · ${offsetStr} · ${ayanamsaCfg.label}` +
+      `${state.dateStr} (${rangeLabel}) · ${state.latitude.toFixed(4)}°N, ${state.longitude.toFixed(4)}°E · ${offsetStr} · ${ayanamsaCfg.label}` +
       (state.ayanamsa !== "tropical" ? ` (${ayanamsaDeg.toFixed(2)}°)` : "");
 
-    // Compute exact windows and interval rows
+    // Compute full-day exact windows, clipped range windows, and interval rows
     lastWindows = Astro.calculateLagnaWindows(state);
+    lastClippedWindows = lastWindows
+      .map((w) => clipWindow(w, state.rangeStartSec, state.rangeEndSec))
+      .filter(Boolean);
     lastIntervals = Astro.calculateIntervals(state);
 
-    // Update active state of sign pills
-    clearFilterBtn.classList.toggle("hidden", selectedSignIndex === null);
+    // Update active state of sign pills and reset button
+    const hasFilter = selectedSignIndex !== null || selectedNavamshaIndex !== null || state.isCustomRange;
+    clearFilterBtn.classList.toggle("hidden", !hasFilter);
     signPillsEl.querySelectorAll(".sign-pill").forEach((el) => {
       const idx = parseInt(el.dataset.signIndex, 10);
       el.classList.toggle("active", selectedSignIndex === idx);
     });
 
-    renderSelectedLagnaSummary(state, lastWindows);
-    renderTimeline(lastWindows);
-    renderWindowsGrid(lastWindows);
-    renderIntervalTable(lastIntervals);
+    renderSelectedLagnaSummary(state, lastWindows, lastClippedWindows);
+    renderTimeline(state, lastWindows);
+    renderWindowsGrid(lastClippedWindows);
+    renderIntervalTable(state, lastIntervals);
     syncUrlParams(state);
   }
 
-  function renderSelectedLagnaSummary(state, windows) {
+  function renderSelectedLagnaSummary(state, allWindows, clippedWindows) {
+    const rangeStartStr = Astro.formatSecondsToHM(state.rangeStartSec);
+    const rangeEndStr = state.rangeEndSec >= 86400 ? "24:00" : Astro.formatSecondsToHM(state.rangeEndSec);
+
     if (selectedSignIndex === null) {
-      selectedLagnaSummaryEl.classList.add("hidden");
-      selectedLagnaSummaryEl.innerHTML = "";
-      return;
-    }
+      const durMin = Math.round(((state.rangeEndSec - state.rangeStartSec) / 60) * 10) / 10;
+      const midSec = Math.floor((state.rangeStartSec + state.rangeEndSec) / 2);
+      const halfMin = Math.round(((state.rangeEndSec - state.rangeStartSec) / 120) * 10) / 10;
+      const candidateSigns = [...new Set(clippedWindows.map((w) => `${w.sign.symbol} ${w.sign.name}`))].join(", ");
 
-    const sign = Astro.ZODIAC_SIGNS[selectedSignIndex];
-    const matching = windows.filter((w) => w.signIndex === selectedSignIndex);
-    selectedLagnaSummaryEl.classList.remove("hidden");
-
-    if (matching.length === 0) {
       selectedLagnaSummaryEl.innerHTML = `
         <div class="highlight-header">
-          <strong>${sign.symbol} ${sign.name} (${sign.vedic}) Lagna</strong>
+          <div>
+            <strong>Current Search Range</strong>
+            <span class="card-sub"> · Select a Lagna sign above to narrow this down</span>
+          </div>
+          <div class="highlight-time">${Astro.formatSecondsToHMS(state.rangeStartSec)} – ${Astro.formatSecondsToHMS(state.rangeEndSec)}</div>
         </div>
-        <p class="card-sub">This sign does not rise on this date at this location.</p>
+        <div class="range-stats">
+          <span class="range-stat-pill">Midpoint: ${Astro.formatSecondsToHMS(midSec)} ± ${halfMin} min</span>
+          <span class="range-stat-pill">Span: ${durMin} min</span>
+          <span class="range-stat-pill">Possible Lagnas (${clippedWindows.length}): ${candidateSigns}</span>
+        </div>
       `;
       return;
     }
 
-    const blocksHtml = matching
+    const sign = Astro.ZODIAC_SIGNS[selectedSignIndex];
+    const matchingClipped = clippedWindows.filter((w) => w.signIndex === selectedSignIndex);
+    const matchingFullDay = allWindows.filter((w) => w.signIndex === selectedSignIndex);
+
+    if (matchingClipped.length === 0) {
+      const fullDayInfo = matchingFullDay.length
+        ? `On ${state.dateStr}, ${sign.name} (${sign.vedic}) rises during <strong>${matchingFullDay.map((w) => `${w.startTime} – ${w.endTime}`).join(", ")}</strong>.`
+        : `This sign does not rise on ${state.dateStr} at this location.`;
+      selectedLagnaSummaryEl.innerHTML = `
+        <div class="highlight-header">
+          <strong>${sign.symbol} ${sign.name} (${sign.vedic}) Lagna</strong>
+          <div class="highlight-time">No overlap with ${rangeStartStr} – ${rangeEndStr}</div>
+        </div>
+        <p class="card-sub">${fullDayInfo}</p>
+      `;
+      return;
+    }
+
+    const blocksHtml = matchingClipped
       .map((w) => {
         const subs = Astro.calculateNavamshaSubWindows({
           ...state,
           startSec: w.startSec,
           endSec: w.endSec,
         });
+
+        // If user also picked a Navamsha (D9) sign, narrow the primary estimated range further!
+        const activeSub =
+          selectedNavamshaIndex !== null
+            ? subs.find((s) => s.navamshaIndex === selectedNavamshaIndex) || null
+            : null;
+
+        const targetStartSec = activeSub ? activeSub.startSec : w.startSec;
+        const targetEndSec = activeSub ? activeSub.endSec : w.endSec;
+        const targetDurMin = Math.round(((targetEndSec - targetStartSec) / 60) * 10) / 10;
+        const targetMid = Astro.formatSecondsToHMS(Math.floor((targetStartSec + targetEndSec) / 2));
+        const targetHalfMin = Math.round(((targetEndSec - targetStartSec) / 120) * 10) / 10;
+
         const subsHtml = subs
           .map(
             (s) => `
-          <div class="navamsha-chip">
+          <button type="button" class="navamsha-chip ${selectedNavamshaIndex === s.navamshaIndex ? "active" : ""}" data-d9-index="${s.navamshaIndex}">
             <strong>${s.startTime} – ${s.endTime}</strong>
             <span>D9: ${s.navamshaSign.name} (${s.navamshaSign.vedic}) · ${s.durationMinutes}m</span>
-          </div>
+          </button>
         `
           )
           .join("");
 
         return `
-          <div style="margin-bottom: 12px;">
+          <div style="margin-bottom: 14px;">
             <div class="highlight-header">
               <div>
-                <strong>${sign.symbol} ${sign.name} (${sign.vedic}) Lagna</strong>
-                <span class="card-sub"> · Ruler: ${sign.ruler} · ${w.durationMinutes} min window</span>
+                <strong>${sign.symbol} ${sign.name} (${sign.vedic}) Lagna${activeSub ? ` + ${activeSub.navamshaSign.name} D9` : ""}</strong>
+                <span class="card-sub"> · Ruler: ${sign.ruler}${state.isCustomRange ? ` · Intersected with ${rangeStartStr}–${rangeEndStr}` : ""}</span>
               </div>
-              <div class="highlight-time">${w.startTime} – ${w.endTime}</div>
+              <div class="highlight-time">${Astro.formatSecondsToHMS(targetStartSec)} – ${Astro.formatSecondsToHMS(targetEndSec)}</div>
             </div>
-            <div class="card-sub">Navamsha (D9) sub-windows inside this Lagna (~13 min each):</div>
+            <div class="range-stats">
+              <span class="range-stat-pill">Estimated Midpoint: <strong>${targetMid}</strong> ± ${targetHalfMin} min</span>
+              <span class="range-stat-pill">Range Width: ${targetDurMin} min</span>
+              ${activeSub ? `<span class="range-stat-pill">Full Lagna Window: ${w.startTime} – ${w.endTime}</span>` : ""}
+            </div>
+            <div class="card-sub">Click a Navamsha (D9) sub-window below to narrow the range even further (~13 min accuracy):</div>
             <div class="navamsha-grid">${subsHtml}</div>
           </div>
         `;
@@ -310,9 +450,17 @@
       .join("");
 
     selectedLagnaSummaryEl.innerHTML = blocksHtml;
+
+    selectedLagnaSummaryEl.querySelectorAll(".navamsha-chip").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const idx = parseInt(btn.dataset.d9Index, 10);
+        selectedNavamshaIndex = selectedNavamshaIndex === idx ? null : idx;
+        updateAll();
+      });
+    });
   }
 
-  function renderTimeline(windows) {
+  function renderTimeline(state, windows) {
     timelineBarEl.innerHTML = "";
     windows.forEach((w) => {
       const pct = ((w.endSec - w.startSec) / 86400) * 100;
@@ -328,18 +476,49 @@
       seg.textContent = pct >= 6.5 ? w.sign.name.slice(0, 3) : pct >= 3.2 ? w.sign.symbol : "";
       seg.addEventListener("click", () => {
         selectedSignIndex = selectedSignIndex === w.signIndex ? null : w.signIndex;
+        selectedNavamshaIndex = null;
         updateAll();
       });
       timelineBarEl.appendChild(seg);
     });
+
+    // Visually highlight the chosen approximate time range on the 24-hour bar
+    if (state.isCustomRange) {
+      const leftPct = (state.rangeStartSec / 86400) * 100;
+      const rightPct = (state.rangeEndSec / 86400) * 100;
+      if (leftPct > 0) {
+        const leftMask = document.createElement("div");
+        leftMask.className = "timeline-range-mask";
+        leftMask.style.left = "0%";
+        leftMask.style.width = `${leftPct}%`;
+        timelineBarEl.appendChild(leftMask);
+      }
+      if (rightPct < 100) {
+        const rightMask = document.createElement("div");
+        rightMask.className = "timeline-range-mask";
+        rightMask.style.left = `${rightPct}%`;
+        rightMask.style.width = `${100 - rightPct}%`;
+        timelineBarEl.appendChild(rightMask);
+      }
+      const frame = document.createElement("div");
+      frame.className = "timeline-range-frame";
+      frame.style.left = `${leftPct}%`;
+      frame.style.width = `${rightPct - leftPct}%`;
+      timelineBarEl.appendChild(frame);
+    }
   }
 
-  function renderWindowsGrid(windows) {
+  function renderWindowsGrid(clippedWindows) {
     windowsGridEl.innerHTML = "";
     const filtered =
       selectedSignIndex === null
-        ? windows
-        : windows.filter((w) => w.signIndex === selectedSignIndex);
+        ? clippedWindows
+        : clippedWindows.filter((w) => w.signIndex === selectedSignIndex);
+
+    if (!filtered.length) {
+      windowsGridEl.innerHTML = `<p class="card-sub">No Lagna windows match the selected sign within this time range.</p>`;
+      return;
+    }
 
     filtered.forEach((w) => {
       const card = document.createElement("div");
@@ -351,26 +530,35 @@
           <span class="sign-pill-vedic">${w.sign.vedic}</span>
         </div>
         <div class="window-card-time">${w.startTime} – ${w.endTime}</div>
-        <div class="window-card-meta">${w.durationMinutes} min · Ruler: ${w.sign.ruler}</div>
+        <div class="window-card-meta">Mid ${w.midpointTime} (±${w.plusMinusMin}m) · ${w.durationMinutes} min</div>
       `;
       card.addEventListener("click", () => {
         selectedSignIndex = selectedSignIndex === w.signIndex ? null : w.signIndex;
+        selectedNavamshaIndex = null;
         updateAll();
       });
       windowsGridEl.appendChild(card);
     });
   }
 
-  function renderIntervalTable(intervals) {
-    const filtered =
-      selectedSignIndex === null
-        ? intervals
-        : intervals.filter((r) => r.signIndex === selectedSignIndex);
+  function renderIntervalTable(state, intervals) {
+    const filtered = intervals.filter((r) => {
+      if (r.seconds < state.rangeStartSec || r.seconds > state.rangeEndSec) return false;
+      if (selectedSignIndex !== null && r.signIndex !== selectedSignIndex) return false;
+      if (selectedNavamshaIndex !== null && r.navamshaIndex !== selectedNavamshaIndex) return false;
+      return true;
+    });
 
-    intervalCountTextEl.textContent =
-      selectedSignIndex === null
-        ? `Showing all ${filtered.length} intervals (${lastState.stepMinutes}-minute step)`
-        : `Showing ${filtered.length} intervals matching ${Astro.ZODIAC_SIGNS[selectedSignIndex].name} Lagna`;
+    const filterDesc = [];
+    if (state.isCustomRange) {
+      filterDesc.push(`${Astro.formatSecondsToHM(state.rangeStartSec)}–${state.rangeEndSec >= 86400 ? "24:00" : Astro.formatSecondsToHM(state.rangeEndSec)}`);
+    }
+    if (selectedSignIndex !== null) filterDesc.push(`${Astro.ZODIAC_SIGNS[selectedSignIndex].name} Lagna`);
+    if (selectedNavamshaIndex !== null) filterDesc.push(`${Astro.ZODIAC_SIGNS[selectedNavamshaIndex].name} D9`);
+
+    intervalCountTextEl.textContent = filterDesc.length
+      ? `Showing ${filtered.length} intervals (${state.stepMinutes}-min step) matching ${filterDesc.join(" · ")}`
+      : `Showing all ${filtered.length} intervals (${state.stepMinutes}-minute step)`;
 
     const fragment = document.createDocumentFragment();
     filtered.forEach((r) => {
@@ -440,14 +628,17 @@
 
   // Copy & CSV Export
   function copySummary() {
-    if (!lastState || !lastWindows.length) return;
+    if (!lastState || !lastClippedWindows.length) return;
     const lines = [
       `Birth Time Estimator — ${metaSummaryEl.textContent}`,
       "",
-      "Lagna Windows:",
-      ...lastWindows
+      "Estimated Birth Time Ranges:",
+      ...lastClippedWindows
         .filter((w) => selectedSignIndex === null || w.signIndex === selectedSignIndex)
-        .map((w) => `  ${w.startTime} - ${w.endTime}  ${w.sign.name} (${w.sign.vedic}) [${w.durationMinutes} min]`),
+        .map(
+          (w) =>
+            `  ${w.startTime} - ${w.endTime}  ${w.sign.name} (${w.sign.vedic})  [midpoint ${w.midpointTime} +/- ${w.plusMinusMin} min, span ${w.durationMinutes} min]`
+        ),
     ];
     navigator.clipboard
       .writeText(lines.join("\n"))
@@ -460,7 +651,12 @@
     const rows = [
       ["Local Time", "UTC ISO", "Lagna Sign", "Vedic Name", "Degree in Sign", "Nakshatra", "Pada", "Navamsha (D9)"],
       ...lastIntervals
-        .filter((r) => selectedSignIndex === null || r.signIndex === selectedSignIndex)
+        .filter((r) => {
+          if (r.seconds < lastState.rangeStartSec || r.seconds > lastState.rangeEndSec) return false;
+          if (selectedSignIndex !== null && r.signIndex !== selectedSignIndex) return false;
+          if (selectedNavamshaIndex !== null && r.navamshaIndex !== selectedNavamshaIndex) return false;
+          return true;
+        })
         .map((r) => [
           r.time,
           r.utcISO,
@@ -518,6 +714,31 @@
     el.addEventListener("input", updateAll);
   });
 
+  rangeStartEl.addEventListener("change", updateAll);
+  rangeStartEl.addEventListener("input", updateAll);
+  rangeEndEl.addEventListener("change", () => {
+    rangeEndIsMidnight = false;
+    updateAll();
+  });
+  rangeEndEl.addEventListener("input", () => {
+    rangeEndIsMidnight = false;
+    updateAll();
+  });
+
+  rangePresetsEl.querySelectorAll("button").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      rangeStartEl.value = btn.dataset.start;
+      if (btn.dataset.end === "24:00") {
+        rangeEndEl.value = "23:59";
+        rangeEndIsMidnight = true;
+      } else {
+        rangeEndEl.value = btn.dataset.end;
+        rangeEndIsMidnight = false;
+      }
+      updateAll();
+    });
+  });
+
   useManualOffsetEl.addEventListener("change", () => {
     manualOffsetEl.disabled = !useManualOffsetEl.checked;
     updateAll();
@@ -525,6 +746,10 @@
 
   clearFilterBtn.addEventListener("click", () => {
     selectedSignIndex = null;
+    selectedNavamshaIndex = null;
+    rangeStartEl.value = "00:00";
+    rangeEndEl.value = "23:59";
+    rangeEndIsMidnight = true;
     updateAll();
   });
 

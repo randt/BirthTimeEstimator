@@ -10,8 +10,9 @@ Open `index.html` directly in a browser or deploy via GitHub Pages (branch `main
 
 Features:
 - Exact 24-hour Lagna transition windows (1-second binary-search precision)
-- Interactive 24-hour color-coded timeline bar
-- Filter by known Lagna sign to view exact birth time windows and **Navamsha (D9)** sub-windows (~13 minutes each)
+- Approximate birth time range input (with presets like Morning/Afternoon/Evening or custom From–To) intersected with Lagna windows for tighter birth time ranges (showing exact start–end, midpoint ± uncertainty, and span)
+- Clickable **Navamsha (D9)** sub-windows inside any Lagna to narrow the estimated birth time range down to ~13 minutes
+- Interactive 24-hour color-coded timeline bar with visual range highlighting
 - Lahiri (Chitrapaksha), Krishnamurti (KP), B.V. Raman, and Tropical ayanamsas
 - Automatic historical timezone offsets via the browser IANA database (plus manual UTC offset override)
 - Quick Sri Lanka, India, and global city presets + OpenStreetMap city search
@@ -24,11 +25,12 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 
-python BirthTimeEstimator.py --date 1998-04-06 --lat 6.9271 --lon 79.8612 --tz Asia/Colombo
+python BirthTimeEstimator.py --date 1998-04-06 --lat 6.9271 --lon 79.8612 --tz Asia/Colombo --start-time 06:00 --end-time 12:00 --filter-lagna Taurus
 ```
 
 Options:
 - `--date YYYY-MM-DD` — Local birth date
+- `--start-time HH:MM` / `--end-time HH:MM` — Approximate birth time range (default: `00:00` to `24:00`)
 - `--lat` / `--lon` — Geographic coordinates (North/East positive)
 - `--tz` — IANA timezone (default: `Asia/Colombo`)
 - `--utc-offset` — Optional manual UTC offset in hours (overrides `--tz`)

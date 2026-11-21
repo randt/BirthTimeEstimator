@@ -106,6 +106,58 @@ def calculate_lagnas(
     return intervals
 
 
+def parse_hhmm_to_seconds(value: str, is_end: bool = False) -> int:
+    """Parse HH:MM or HH:MM:SS into seconds since midnight [0, 86400]."""
+    text = value.strip()
+    if text in ("24:00", "24:00:00"):
+        return 86400
+    parts = [int(p) for p in text.split(":")]
+    if len(parts) == 2:
+        h, m = parts
+        s = 0
+    elif len(parts) == 3:
+        h, m, s = parts
+    else:
+        raise ValueError(f"Invalid time format: {value!r} (expected HH:MM or HH:MM:SS)")
+    total = h * 3600 + m * 60 + s
+    if is_end and text == "23:59":
+        return 86400
+    return max(0, min(86400, total))
+
+
+def format_seconds(sec: int) -> str:
+    if sec >= 86400:
+        return "24:00:00"
+    h = sec // 3600
+    m = (sec % 3600) // 60
+    s = sec % 60
+    return f"{h:02d}:{m:02d}:{s:02d}"
+
+
+def clip_windows_to_range(windows, start_sec: int, end_sec: int):
+    """Intersect Lagna windows with a user-supplied approximate birth time range."""
+    clipped = []
+    for w in windows:
+        lo = max(w["start_sec"], start_sec)
+        hi = min(w["end_sec"], end_sec)
+        if hi > lo:
+            mid = (lo + hi) // 2
+            half_min = round((hi - lo) / 120.0, 1)
+            clipped.append(
+                {
+                    **w,
+                    "start_sec": lo,
+                    "end_sec": hi,
+                    "start": format_seconds(lo),
+                    "end": format_seconds(hi),
+                    "midpoint": format_seconds(mid),
+                    "plus_minus_minutes": half_min,
+                    "duration_minutes": round((hi - lo) / 60.0, 1),
+                }
+            )
+    return clipped
+
+
 def calculate_lagna_windows(
     date: datetime.date,
     latitude: float,
@@ -151,12 +203,15 @@ def calculate_lagna_windows(
     result = []
     for s_sec, e_sec, idx in windows:
         western, vedic = ZODIAC_SIGNS[idx]
-        start_str = str(datetime.timedelta(seconds=s_sec)).zfill(8)
-        end_str = "24:00:00" if e_sec == total_seconds else str(datetime.timedelta(seconds=e_sec)).zfill(8)
+        mid_sec = (s_sec + e_sec) // 2
         result.append(
             {
-                "start": start_str,
-                "end": end_str,
+                "start_sec": s_sec,
+                "end_sec": e_sec,
+                "start": format_seconds(s_sec),
+                "end": format_seconds(e_sec),
+                "midpoint": format_seconds(mid_sec),
+                "plus_minus_minutes": round((e_sec - s_sec) / 120.0, 1),
                 "sign": western,
                 "vedic_sign": vedic,
                 "duration_minutes": round((e_sec - s_sec) / 60.0, 1),
@@ -167,7 +222,7 @@ def calculate_lagna_windows(
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Estimate Vedic Lagna (Ascendant) birth time windows for a given date and location."
+        description="Estimate Vedic Lagna (Ascendant) birth time ranges for a given date and location."
     )
     parser.add_argument("--date", default="1998-04-06", help="Local birth date in YYYY-MM-DD (default: 1998-04-06)")
     parser.add_argument("--lat", type=float, default=6.9271, help="Latitude in degrees, North positive (default: 6.9271, Colombo)")
@@ -175,12 +230,19 @@ def main():
     parser.add_argument("--tz", default="Asia/Colombo", help="IANA timezone name (default: Asia/Colombo)")
     parser.add_argument("--utc-offset", type=float, default=None, help="Manual UTC offset in hours (overrides --tz)")
     parser.add_argument("--ayanamsa", choices=list(AYANAMSA_MODES.keys()), default="lahiri", help="Ayanamsa system (default: lahiri)")
+    parser.add_argument("--start-time", default="00:00", help="Approximate birth time range start HH:MM (default: 00:00)")
+    parser.add_argument("--end-time", default="24:00", help="Approximate birth time range end HH:MM (default: 24:00)")
     parser.add_argument("--step", type=int, default=15, help="Interval size in minutes for the table (default: 15)")
     parser.add_argument("--filter-lagna", default=None, help="Filter output to a specific Lagna sign (e.g. Leo or Simha)")
     parser.add_argument("--intervals", action="store_true", help="Also print the full interval breakdown table")
     args = parser.parse_args()
 
     target_date = datetime.date.fromisoformat(args.date)
+    start_sec = parse_hhmm_to_seconds(args.start_time, is_end=False)
+    end_sec = parse_hhmm_to_seconds(args.end_time, is_end=True)
+    if end_sec <= start_sec:
+        raise SystemExit("Error: --end-time must be after --start-time")
+
     sample_local = datetime.datetime(target_date.year, target_date.month, target_date.day, 12, 0)
     if args.utc_offset is not None:
         tz_label = f"UTC{args.utc_offset:+g}"
@@ -192,17 +254,28 @@ def main():
         hh, mm = divmod(abs(total_mins), 60)
         tz_label = f"{args.tz} (UTC{sign}{hh:02d}:{mm:02d})"
 
-    print(f"Date: {target_date} | Lat: {args.lat}, Lon: {args.lon} | TZ: {tz_label} | Ayanamsa: {args.ayanamsa.upper()}")
-    print("\nLagna Windows:")
-    windows = calculate_lagna_windows(
+    print(
+        f"Date: {target_date} | Range: {format_seconds(start_sec)} - {format_seconds(end_sec)} | "
+        f"Lat: {args.lat}, Lon: {args.lon} | TZ: {tz_label} | Ayanamsa: {args.ayanamsa.upper()}"
+    )
+    print("\nEstimated Birth Time Ranges (by Lagna):")
+    all_windows = calculate_lagna_windows(
         target_date, args.lat, args.lon, tz_name=args.tz, utc_offset_hours=args.utc_offset, ayanamsa=args.ayanamsa
     )
+    windows = clip_windows_to_range(all_windows, start_sec, end_sec)
+    matched = 0
     for w in windows:
         if args.filter_lagna:
             q = args.filter_lagna.strip().lower()
             if q not in (w["sign"].lower(), w["vedic_sign"].lower()):
                 continue
-        print(f"  {w['start']} - {w['end']}  {w['sign']:<12} ({w['vedic_sign']:<10})  [{w['duration_minutes']:.1f} min]")
+        matched += 1
+        print(
+            f"  {w['start']} - {w['end']}  {w['sign']:<12} ({w['vedic_sign']:<10})  "
+            f"[midpoint {w['midpoint']} +/- {w['plus_minus_minutes']:.1f} min, span {w['duration_minutes']:.1f} min]"
+        )
+    if matched == 0:
+        print("  No matching Lagna found in the specified time range.")
 
     if args.intervals:
         print(f"\n{args.step}-Minute Intervals:")
@@ -216,6 +289,10 @@ def main():
             ayanamsa=args.ayanamsa,
         )
         for r in rows:
+            hh, mm = map(int, r["time"].split(":"))
+            sec = hh * 3600 + mm * 60
+            if sec < start_sec or sec > end_sec:
+                continue
             if args.filter_lagna:
                 q = args.filter_lagna.strip().lower()
                 if q not in (r["sign"].lower(), r["vedic_sign"].lower()):
