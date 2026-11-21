@@ -374,7 +374,9 @@ input:disabled {
 }
 
 .sign-symbol {
-  font-size: 0.82rem;
+  font-family: "Apple Symbols", "Segoe UI Symbol", "Noto Sans Symbols 2", "Noto Sans Symbols", sans-serif;
+  font-variant-emoji: text;
+  font-size: 0.88rem;
   opacity: 0.78;
 }
 

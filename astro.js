@@ -16,18 +16,18 @@
   const RAD2DEG = 180 / Math.PI;
 
   const ZODIAC_SIGNS = [
-    { index: 0, name: "Aries", vedic: "Mesha", symbol: "♈", element: "Fire", ruler: "Mars", color: "#18181b" },
-    { index: 1, name: "Taurus", vedic: "Vrishabha", symbol: "♉", element: "Earth", ruler: "Venus", color: "#3f3f46" },
-    { index: 2, name: "Gemini", vedic: "Mithuna", symbol: "♊", element: "Air", ruler: "Mercury", color: "#18181b" },
-    { index: 3, name: "Cancer", vedic: "Karka", symbol: "♋", element: "Water", ruler: "Moon", color: "#3f3f46" },
-    { index: 4, name: "Leo", vedic: "Simha", symbol: "♌", element: "Fire", ruler: "Sun", color: "#18181b" },
-    { index: 5, name: "Virgo", vedic: "Kanya", symbol: "♍", element: "Earth", ruler: "Mercury", color: "#3f3f46" },
-    { index: 6, name: "Libra", vedic: "Tula", symbol: "♎", element: "Air", ruler: "Venus", color: "#18181b" },
-    { index: 7, name: "Scorpio", vedic: "Vrishchika", symbol: "♏", element: "Water", ruler: "Mars", color: "#3f3f46" },
-    { index: 8, name: "Sagittarius", vedic: "Dhanu", symbol: "♐", element: "Fire", ruler: "Jupiter", color: "#18181b" },
-    { index: 9, name: "Capricorn", vedic: "Makara", symbol: "♑", element: "Earth", ruler: "Saturn", color: "#3f3f46" },
-    { index: 10, name: "Aquarius", vedic: "Kumbha", symbol: "♒", element: "Air", ruler: "Saturn", color: "#18181b" },
-    { index: 11, name: "Pisces", vedic: "Meena", symbol: "♓", element: "Water", ruler: "Jupiter", color: "#3f3f46" },
+    { index: 0, name: "Aries", vedic: "Mesha", symbol: "♈\uFE0E", element: "Fire", ruler: "Mars", color: "#18181b" },
+    { index: 1, name: "Taurus", vedic: "Vrishabha", symbol: "♉\uFE0E", element: "Earth", ruler: "Venus", color: "#3f3f46" },
+    { index: 2, name: "Gemini", vedic: "Mithuna", symbol: "♊\uFE0E", element: "Air", ruler: "Mercury", color: "#18181b" },
+    { index: 3, name: "Cancer", vedic: "Karka", symbol: "♋\uFE0E", element: "Water", ruler: "Moon", color: "#3f3f46" },
+    { index: 4, name: "Leo", vedic: "Simha", symbol: "♌\uFE0E", element: "Fire", ruler: "Sun", color: "#18181b" },
+    { index: 5, name: "Virgo", vedic: "Kanya", symbol: "♍\uFE0E", element: "Earth", ruler: "Mercury", color: "#3f3f46" },
+    { index: 6, name: "Libra", vedic: "Tula", symbol: "♎\uFE0E", element: "Air", ruler: "Venus", color: "#18181b" },
+    { index: 7, name: "Scorpio", vedic: "Vrishchika", symbol: "♏\uFE0E", element: "Water", ruler: "Mars", color: "#3f3f46" },
+    { index: 8, name: "Sagittarius", vedic: "Dhanu", symbol: "♐\uFE0E", element: "Fire", ruler: "Jupiter", color: "#18181b" },
+    { index: 9, name: "Capricorn", vedic: "Makara", symbol: "♑\uFE0E", element: "Earth", ruler: "Saturn", color: "#3f3f46" },
+    { index: 10, name: "Aquarius", vedic: "Kumbha", symbol: "♒\uFE0E", element: "Air", ruler: "Saturn", color: "#18181b" },
+    { index: 11, name: "Pisces", vedic: "Meena", symbol: "♓\uFE0E", element: "Water", ruler: "Jupiter", color: "#3f3f46" },
   ];
 
   const NAKSHATRAS = [
